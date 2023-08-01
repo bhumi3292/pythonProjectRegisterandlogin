@@ -27,6 +27,13 @@ email_label2 = Label(frame_1, text='• Email account', fg="#89898b", bg='#f8f8f
                          font=("yu gothic ui", 11, 'bold'))
 email_label2.place(x=40, y=0)
 
+def Update_password():
+    messagebox.showinfo("Success","Your password has been updated!")
+    forget_pass.destroy()
+    import user_login_final
+
+
+
     # ====  New Password ==================
 new_password_entry = Entry(frame_1, fg="#a7a7a7", font=("yu gothic ui semibold", 12), show='•', highlightthickness=2)
 new_password_entry.place(x=40, y=110, width=256, height=34)
@@ -44,7 +51,7 @@ confirm_password_label.place(x=40, y=160)
 
     # ======= Update password Button ============
 update_pass = Button(frame_1, fg='#f8f8f8', text='Update Password', bg='#1b87d2', font=("yu gothic ui bold", 14),
-                         cursor='hand2', activebackground='#1b87d2')
+                         cursor='hand2', activebackground='#1b87d2',command=Update_password)
 update_pass.place(x=40, y=240, width=256, height=50)
 
 forget_pass.mainloop()
