@@ -1,384 +1,235 @@
-from tkinter import *
+import tkinter as tk
+from tkinter import ttk, messagebox
+from tkcalendar import DateEntry
+import sqlite3
+import matplotlib.pyplot as plt
+import random
 from tkinter import *
 from tkinter import ttk
-from tkinter import messagebox
 from tkinter.ttk import Notebook, Treeview
-from tkcalendar import *
-import sqlite3
 
 
-def main_screen():
-    gui = Tk()
-    gui.title('Expense and Income Manager')
-    gui.geometry('700x''600')
-    gui.resizable(0, 0)
 
-    # styling tab's text
-    s = ttk.Style()
-    s.configure('TNotebook.Tab', font=('Comic Sans MS', '10', 'bold'))
+class ExpenseIncomeManager:
+    def __init__(self, root):
+        self.root = root
+        self.root.title('Expense and Income Manager')
+        self.root.geometry('700x600')
+        self.root.resizable(0, 0)
+        self.root.configure(bg='#12AD2B')
 
-    # creating tabs
-    tab = Notebook(gui)
-    tab.pack(padx=10, pady=10)
+        self.notebook = ttk.Notebook(self.root)
+        self.notebook.pack(padx=10, pady=10)
 
-    # creating frames for tabs
-    frame1 = Frame(tab, width=800, height=400)
-    frame1.pack(fill="both", expand=1)
-    frame2 = Frame(tab, width=800, height=400, bg="ivory3")
-    frame2.pack(fill="both", expand=1)
+        self.expense_tab = ttk.Frame(self.notebook)
+        self.search_tab = ttk.Frame(self.notebook)
 
-    # adding frames to the tabs
-    tab.add(frame1, text=" Expense ")
-    tab.add(frame2, text=" Search / Edit / Delete ")
+        self.notebook.add(self.expense_tab, text="Expense")
+        self.notebook.add(self.search_tab, text="Search / Edit / Delete")
 
-    # frames in frame 1
-    f1 = Frame(frame1, width=800, height=200, bg="#12AD2B")
-    f1.pack(fill="both", expand=1)
-    f2 = Frame(frame1, width=800, height=200, bg="#12AD2B")
-    f2.pack(fill="both", expand=1)
+        self.create_expense_tab()
+        self.create_search_tab()
 
-    # frames in frame 2
-    f3 = Frame(frame2, width=800, height=200, bg="#12AD2B")
-    f3.pack(fill="both", expand=1)
-    f4 = Frame(frame2, width=800, height=200, bg="#12AD2B")
-    f4.pack(fill="both", expand=1)
+    def create_database(self):
+        self.conn = sqlite3.connect("expense.db")
+        self.cursor = self.conn.cursor()
+        self.cursor.execute("""CREATE TABLE IF NOT EXISTS expense_table (
+            date text,
+            title text,
+            expense real)""")
+        self.conn.commit()
 
-    # frames inside f4
-    f4_1 = Frame(f4, width=800, height=200, bg="#12AD2B")
-    f4_1.grid(row=0, column=0)
-    f4_2 = Frame(f4, width=800, height=200, bg="#12AD2B")
-    f4_2.grid(row=1, column=0)
+    def insert_record(self, date, title, expense):
+        self.cursor.execute("INSERT INTO expense_table VALUES (?, ?, ?)", (date, title, expense))
+        self.conn.commit()
 
-    # ---------- variables -----------
-    date = StringVar()
-    title = StringVar()
-    expense = StringVar()
-    variable = StringVar()
+    def show_records(self, tree_view):
+        self.cursor.execute("SELECT * FROM expense_table")
+        records = self.cursor.fetchall()
+        for record in records:
+            tree_view.insert('', 'end', values=record)
 
-    # ------------------------------------- database stuff -----------------------------------
+    def clear_records(self, tree_view):
+        tree_view.delete(*tree_view.get_children())
 
-    # -------------- functions ----------------------
-    # create table
-    def create_table():
-        connect = sqlite3.connect("expense.db")
-        cursor = connect.cursor()
-        cursor.execute("""CREATE TABLE IF NOT EXISTS expense_table(
-                    date text,
-                    title text,
-                    expense real)""")
-        connect.commit()
+    def delete_all_records(self, window):
+        MsgBox = messagebox.askquestion('Delete Everything',
+                                        'Are you sure you want to delete all the contents of the table?',
+                                        icon='warning')
+        if MsgBox == 'yes':
+            self.cursor.execute("DELETE FROM expense_table")
+            self.conn.commit()
+            self.clear_records(window)
+        else:
+            messagebox.showinfo('Return', 'You will now return to the application screen')
 
-    create_table()
+    def create_expense_tab(self):
+        self.create_database()
 
-    # --------------------------------- tabe 1 (frame1) --------------------------------------
-    def main_window1_tab1():
-        # open a new window on a click to "show all" button
-        def open_New_Window():
-            new_Window = Toplevel(f1)
-            new_Window.title("ALL THE STORED RECORDS UNTIL NOW")
-            new_Window.geometry("690x540")
+        frame1 = ttk.Frame(self.expense_tab)
+        frame1.pack(fill="both", expand=1)
 
-            # frame for the new opened window
-            frame_new = Frame(new_Window, bg="white")
-            frame_new.pack(fill="both", expand=1, padx=10, pady=10)
+        l_date = ttk.Label(frame1, text='Date:', font=('Arial', 12, 'bold'))
+        l_date.grid(row=0, column=0, padx=20, pady=20, sticky='w',)
 
-            # create a tree view in the new opened window
-            tree_view_new = ttk.Treeview(frame_new, columns=(1, 2, 3), show="headings", height="20")
-            tree_view_new.grid(row=0, column=0, padx=30, pady=10, sticky='w')
+        self.e_date = DateEntry(frame1, width=12, font=('Arial', 12))
+        self.e_date.grid(row=0, column=1, padx=10, pady=20, sticky='w')
 
-            tree_view_new.heading('#1', text="D A T E")
-            tree_view_new.heading('#2', text="T I T L E")
-            tree_view_new.heading('#3', text="E X P E N S E")
-
-            # scrollbar for the tree_view_new
-            scrollbar_new = ttk.Scrollbar(frame_new, orient=VERTICAL, command=tree_view_new.yview)
-            tree_view_new.configure(yscrollcommand=scrollbar_new.set)
-            scrollbar_new.grid(row=0, column=0, sticky=S + E + N)
-
-            connect = sqlite3.connect("expense.db")
-            cursor = connect.cursor()
-            cursor.execute("SELECT * FROM expense_table")
-            rows = cursor.fetchall()  # fetching all the contents of the tabe to insert in the new window tree view
-            connect.commit()
-            # inserts all the contents of the table into the tree_view_new
-            for row in rows:
-                print(row)  # it print all records in the database
-                tree_view_new.insert('', 'end', values=row)
-
-                # function to delete every record
-
-            def delete_all():
-                connect = sqlite3.connect("expense.db")
-                cursor = connect.cursor()
-
-                # warning window for delete all button
-                MsgBox = messagebox.askquestion('DELETE EVERYTHING',
-                                                'Are you sure you want to delete all the contents of the table !!',
-                                                icon='warning')
-                if MsgBox == 'yes':
-                    cursor.execute("DELETE FROM expense_table")  # delete the contents of the table
-                    connect.commit()
-                    new_Window.destroy()
-                else:
-                    messagebox.showinfo('Return', 'You will now return to the application screen')
-
-                # delete the contents of tree_view (in the first tab)
-                x = tree_view.get_children()
-                for item in x:
-                    tree_view.delete(item)
-
-            # create a button to delete everything
-            button_delete_all = Button(frame_new, text=' DELETE ALL ', font=(None, 12, 'bold'), border=6,
-                                       command=delete_all, bg="indian red")
-            button_delete_all.grid(row=1, column=0, padx=40, pady=15)
-
-        # insert data into the table and treeview
-        def insert():
-            connect = sqlite3.connect("expense.db")
-            cursor = connect.cursor()
-
-            date = e_date.get()
-            title = e_title.get()
-            expense = e_expense.get()
-            cursor.execute("INSERT INTO expense_table VALUES (?, ?, ?)", (date, title, expense))
-
-            tree_view.insert('', 'end', values=(date, title, expense))
-            connect.commit()
-
-            e_title.delete(0, END)  # to clear the title entry box
-            e_expense.delete(0, END)  # to clear the expense entry box
-
-        # -----row 0, date entry-----
-        l_date = ttk.Label(f1, text='DATE : ', font=(None, 13, 'bold'), background="white")
-        l_date.grid(row=0, column=0, padx=20, pady=20, sticky='w')
-
-        e_date = DateEntry(f1, width=10, font=(None, 13, 'bold'), textvariable=date)
-        e_date.grid(row=0, column=1, padx=50, pady=20, sticky='w')
-
-        # -----row 1, title entry-----
-        l_title = ttk.Label(f1, text='TITLE : ', font=('arial', 13, 'bold'), background="white")
+        l_title = ttk.Label(frame1, text='Title:', font=('Arial', 12, 'bold'))
         l_title.grid(row=1, column=0, padx=20, pady=5, sticky='w')
 
-        e_title = ttk.Entry(f1, width=20, font=('arial', 13, 'bold'), textvariable=title,)
-        e_title.grid(row=1, column=1, padx=50, pady=5, sticky='w')
+        self.e_title = ttk.Entry(frame1, width=20, font=('Arial', 12))
+        self.e_title.grid(row=1, column=1, padx=10, pady=5, sticky='w')
 
-        # -----row 2, expense entry-----
-        l_expense = ttk.Label(f1, text='EXPENSE : ', font=(None, 13, 'bold'), background="white")
+        l_expense = ttk.Label(frame1, text='Expense:', font=('Arial', 12, 'bold'))
         l_expense.grid(row=2, column=0, padx=20, pady=25, sticky='w')
 
-        e_expense = ttk.Entry(f1, width=20, font=(None, 13, 'bold'), textvariable=expense)
-        e_expense.grid(row=2, column=1, padx=50, pady=25, sticky='w')
+        self.e_expense = ttk.Entry(frame1, width=20, font=('Arial', 12))
+        self.e_expense.grid(row=2, column=1, padx=10, pady=25, sticky='w')
 
-        # button to add the entered data into the database
-        button_add = Button(f1, text='       ADD      ', font=(None, 14, 'bold'), border=6, command=insert)
-        button_add.grid(row=2, column=2, padx=40, pady=15)
+        button_add = ttk.Button(frame1, text='Add Expense', command=self.add_expense)
+        button_add.grid(row=2, column=2, padx=20, pady=15)
 
-        # button to show all the entries in the treeView
-        button_show_all = Button(f2, text='   SHOW ALL   ', font=(None, 12, 'bold'), border=6, command=open_New_Window)
-        button_show_all.grid(row=1, column=0, padx=40, pady=5)
+        frame2 = ttk.Frame(self.expense_tab)
+        frame2.pack(fill="both", expand=1)
 
-        # ------------- tree view ---------------
-        tree_view = ttk.Treeview(f2, columns=(1, 2, 3), show="headings", height="10")
-        tree_view.grid(row=0, column=0, padx=30, pady=25, sticky='w')
+        button_show_all = ttk.Button(frame2, text='Show All Records', command=self.show_all_records)
+        button_show_all.grid(row=0, column=0, padx=40, pady=10)
 
-        tree_view.heading('#1', text="D A T E")
-        tree_view.heading('#2', text="T I T L E")
-        tree_view.heading('#3', text="E X P E N S E")
+        button_delete_all = ttk.Button(frame2, text='Delete All Records', command=self.delete_all_records_prompt)
+        button_delete_all.grid(row=0, column=1, padx=40, pady=10)
 
-        scrollbar = ttk.Scrollbar(f2, orient=VERTICAL, command=tree_view.yview)
-        tree_view.configure(yscrollcommand=scrollbar.set)
-        scrollbar.grid(row=0, column=0, sticky=S + E + N)
+        self.tree_view_expense = ttk.Treeview(frame2, columns=("Date", "Title", "Expense"), show="headings")
+        self.tree_view_expense.heading("Date", text="Date")
+        self.tree_view_expense.heading("Title", text="Title")
+        self.tree_view_expense.heading("Expense", text="Expense")
+        self.tree_view_expense.grid(row=1, column=0, columnspan=2, padx=20, pady=10, sticky='w')
 
-    # ---------------------------------------tab 2 (frame2)-----------------------------------
-    def main_window2_tab2():
-        # function to exit the app
-        def exit():
-            MsgBox_exit = messagebox.askquestion('WARNING', 'Are you sure you want to exit the app!!', icon='warning')
-            if MsgBox_exit == 'yes':
-                gui.destroy()
-            else:
-                messagebox.showinfo('Return', 'You will now return to the application screen')
+        scrollbar_expense = ttk.Scrollbar(frame2, orient="vertical", command=self.tree_view_expense.yview)
+        self.tree_view_expense.configure(yscrollcommand=scrollbar_expense.set)
+        scrollbar_expense.grid(row=1, column=2, sticky='ns')
 
-        # function for clear screen
-        def clear_screen():
-            tree_view1_records = tree_view1.get_children()
-            for item in tree_view1_records:
-                tree_view1.delete(item)
+        button_generate_chart = ttk.Button(frame2, text='Generate Pie Chart', command=self.generate_pie_chart)
+        button_generate_chart.grid(row=2, column=0, columnspan=2, padx=20, pady=10)
 
-        # search function (in tab 2)
-        def search():
-            # checking for empty space
-            if e_search.get() == "":
-                messagebox.showinfo("WARNING !! ", "WARNING: Search Entry is empty. Check again !!")
-            else:
-                connect = sqlite3.connect("expense.db")
-                cursor = connect.cursor()
+    def generate_pie_chart(self):
+        self.cursor.execute("SELECT title, expense FROM expense_table")
+        records = self.cursor.fetchall()
 
-                variable_input = variable.get()  # taking selected option from the option menu
+        if not records:
+            messagebox.showwarning("Warning", "No records found.")
+            return
 
-                if variable_input == "Date :":
-                    cursor.execute("SELECT * FROM expense_table WHERE date = ?", (e_search.get(),))
-                    records = cursor.fetchall()
-                    connect.commit()
-                elif variable_input == "Title :":
-                    cursor.execute("SELECT * FROM expense_table WHERE title = ?", (e_search.get(),))
-                    records = cursor.fetchall()
-                    connect.commit()
-                else:
-                    cursor.execute("SELECT * FROM expense_table WHERE expense = ?", (e_search.get(),))
-                    records = cursor.fetchall()
-                    connect.commit()
+        categories = [record[0] for record in records]
+        expenses = [record[1] for record in records]
+        colors = random.choices(list(plt.cm.colors.CSS4_COLORS.values()), k=len(records))
 
-                for record in records:
-                    tree_view1.insert('', 'end', values=record)
+        plt.figure(figsize=(8, 6))
+        plt.pie(expenses, labels=categories, colors=colors, autopct='%1.1f%%', shadow=True)
+        plt.title("Expense Distribution")
+        plt.show()
 
-                e_search.delete(0, END)  # to clear the search entry
+    def create_search_tab(self):
+        frame1 = ttk.Frame(self.search_tab)
+        frame1.pack(fill="both", expand=1)
 
-        # to delete the selected contents from the database and tree_view1
-        def delete_record():
-            connect = sqlite3.connect("expense.db")
-            cursor = connect.cursor()
-            # if else stmt to check if there is record selected or not
-            if tree_view1.selection():
-                # warning window for delete all button
-                MsgBox = messagebox.askquestion('DELETE SELECTED RECORD',
-                                                'Are you sure you want to delete the selected records !!',
-                                                icon='warning')
-                if MsgBox == 'yes':
-                    for selected_item in tree_view1.selection():
-                        print(selected_item)  # it prints the selected row id
-                        cursor.execute("DELETE FROM expense_table WHERE date=? AND title=? AND expense=?", (
-                        tree_view1.set(selected_item, '#1'), tree_view1.set(selected_item, '#2'),
-                        tree_view1.set(selected_item, '#3')))
-                        connect.commit()
-                        tree_view1.delete(selected_item)
-                else:
-                    messagebox.showinfo('Return', 'You will now return to the application screen')
-            else:
-                messagebox.showinfo('WARNING', 'There is no record selected !!')
+        search_options = ["Date", "Title", "Expense"]
+        self.variable_search_by = tk.StringVar()
+        self.variable_search_by.set(search_options[0])
 
-        # to define an edit function
-        def edit_record():
-            # to check if there is a record selected or not
-            if tree_view1.selection():
-                # local variables
-                edited_date = StringVar()
-                edited_title = StringVar()
-                edited_expense = StringVar()
+        search_label = ttk.Label(frame1, text='Search by:', font=('Arial', 12, 'bold'))
+        search_label.grid(row=0, column=0, padx=20, pady=20, sticky='w')
 
-                # to get the editable item from the tree_view1
-                editable_item = tree_view1.selection()
+        search_dropdown = ttk.OptionMenu(frame1, self.variable_search_by, *search_options)
+        search_dropdown.grid(row=0, column=1, padx=10, pady=20, sticky='w')
 
-                # defining update function
-                def update():
-                    edited_date = edit_e_date.get()
-                    edited_title = edit_e_title.get()
-                    edited_expense = edit_e_expense.get()
-                    # connecting to sqlite database
-                    connect = sqlite3.connect("expense.db")
-                    cursor = connect.cursor()
+        self.entry_search = ttk.Entry(frame1, width=20, font=('Arial', 12))
+        self.entry_search.grid(row=0, column=2, padx=10, pady=20, sticky='w')
 
-                    for x in editable_item:
-                        # database stuff
-                        cursor.execute(
-                            "UPDATE expense_table SET date=?, title=?, expense=? WHERE date=? AND title=? AND expense=?",
-                            (edited_date, edited_title, edited_expense, tree_view1.set(editable_item, '#1'),
-                             tree_view1.set(editable_item, '#2'), tree_view1.set(editable_item, '#3')))
-                        connect.commit()
-                        # replacing the selected row with new inputs(edit_e_date, edit_e_title, edit_e_expense)
-                        tree_view1.item(x, values=(
-                        edited_date, edited_title, edited_expense))  # to edit the selected item in the tree_view1
+        search_button = ttk.Button(frame1, text='Search', command=self.search_records)
+        search_button.grid(row=0, column=3, padx=20, pady=20)
 
-                    # to exit the edit window
-                    new_edit_Window.destroy()
+        clear_search_button = ttk.Button(frame1, text='Clear Search Results', command=self.clear_search_results)
+        clear_search_button.grid(row=0, column=4, padx=20, pady=20)
 
-                # edit popup window to edit the items
-                new_edit_Window = Toplevel(f3)
-                new_edit_Window.title("EDIT TOOL WINDOW :")
-                new_edit_Window.geometry("590x170")
+        frame2 = ttk.Frame(self.search_tab)
+        frame2.pack(fill="both", expand=1)
 
-                # frame for the new opened window
-                edit_frame = Frame(new_edit_Window, bg="light grey")
-                edit_frame.pack(fill="both", expand=1, padx=10, pady=10)
+        delete_selected_button = ttk.Button(frame2, text='Delete Selected Record',
+                                            command=self.delete_selected_record_prompt)
+        delete_selected_button.grid(row=0, column=0, padx=40, pady=10)
 
-                edit_l_date = ttk.Label(edit_frame, text='DATE : ', font=(None, 13, 'bold'), background="light grey")
-                edit_l_date.grid(row=0, column=0, padx=15, pady=5, sticky='w')
+        self.tree_view_search = ttk.Treeview(frame2, columns=("Date", "Title", "Expense"), show="headings")
+        self.tree_view_search.heading("Date", text="Date")
+        self.tree_view_search.heading("Title", text="Title")
+        self.tree_view_search.heading("Expense", text="Expense")
+        self.tree_view_search.grid(row=1, column=0, padx=20, pady=10, sticky='w')
 
-                edit_e_date = DateEntry(edit_frame, width=10, font=(None, 13, 'bold'), textvariable=edited_date)
-                edit_e_date.grid(row=1, column=0, padx=15, pady=5, sticky='w')
+        scrollbar_search = ttk.Scrollbar(frame2, orient="vertical", command=self.tree_view_search.yview)
+        self.tree_view_search.configure(yscrollcommand=scrollbar_search.set)
+        scrollbar_search.grid(row=1, column=1, sticky='ns')
 
-                edit_l_title = ttk.Label(edit_frame, text='TITLE : ', font=(None, 13, 'bold'), background="light grey")
-                edit_l_title.grid(row=0, column=1, padx=15, pady=5, sticky='w')
+    def add_expense(self):
+        date = self.e_date.get()
+        title = self.e_title.get()
+        expense = self.e_expense.get()
 
-                edit_e_title = ttk.Entry(edit_frame, width=20, font=(None, 13, 'bold'), textvariable=edited_title)
-                edit_e_title.grid(row=1, column=1, padx=15, pady=5, sticky='w')
+        if date and title and expense:
+            self.insert_record(date, title, expense)
+            self.tree_view_expense.insert('', 'end', values=(date, title, expense))
+            self.clear_entry_fields()
+        else:
+            messagebox.showerror("Error", "Please fill in all fields.")
 
-                edit_l_expense = ttk.Label(edit_frame, text='EXPENSE : ', font=(None, 13, 'bold'),
-                                           background="white")
-                edit_l_expense.grid(row=0, column=2, padx=15, pady=5, sticky='w')
+    def show_all_records(self):
+        self.clear_records(self.tree_view_expense)
+        self.show_records(self.tree_view_expense)
 
-                edit_e_expense = ttk.Entry(edit_frame, width=20, font=(None, 13, 'bold'), textvariable=edited_expense)
-                edit_e_expense.grid(row=1, column=2, padx=15, pady=5, sticky='w')
+    def delete_all_records_prompt(self):
+        MsgBox = messagebox.askquestion('Delete Everything',
+                                        'Are you sure you want to delete all the records?',
+                                        icon='warning')
+        if MsgBox == 'yes':
+            self.delete_all_records(self.tree_view_expense)
 
-                # button to add the entered data into the database
-                update_button = Button(edit_frame, text='  UPDATE  ', font=(None, 14, 'bold'), border=6, command=update)
-                update_button.grid(row=2, column=2, padx=40, pady=15)
-            else:
-                messagebox.showinfo('WARNING', 'There is no record selected !!')
+    def search_records(self):
+        search_by = self.variable_search_by.get()
+        search_text = self.entry_search.get()
+        if search_text:
+            self.clear_records(self.tree_view_search)
+            self.cursor.execute(f"SELECT * FROM expense_table WHERE {search_by}=?", (search_text,))
+            records = self.cursor.fetchall()
+            for record in records:
+                self.tree_view_search.insert('', 'end', values=record)
+        else:
+            messagebox.showwarning("Warning", "Search field is empty.")
 
-        # -------------------------- row 0 (search) --------------------------------
-        # label for search
-        l_search = ttk.Label(f3, text="Search by ", font=(None, 13, 'bold'), background="white")
-        l_search.grid(row=0, column=0, padx=30, pady=20, sticky='w')
+    def clear_search_results(self):
+        self.clear_records(self.tree_view_search)
 
-        # create menulist
-        variable.set("Title :")  # default value
-        drop_down = OptionMenu(f3, variable, "Date :", "Title :", "Expense :")
-        drop_down.grid(row=0, column=1, pady=20, sticky='w')
-        # configure text of the menulist
-        drop_down.config(font=(None, 13, 'bold'))
+    def delete_selected_record_prompt(self):
+        selected_item = self.tree_view_search.selection()
+        if selected_item:
+            MsgBox = messagebox.askquestion('Delete Selected Record',
+                                            'Are you sure you want to delete the selected record?',
+                                            icon='warning')
+            if MsgBox == 'yes':
+                for item in selected_item:
+                    record = self.tree_view_search.item(item, "values")
+                    self.cursor.execute("DELETE FROM expense_table WHERE date=? AND title=? AND expense=?",
+                                        (record[0], record[1], record[2]))
+                    self.conn.commit()
+                    self.tree_view_search.delete(item)
+        else:
+            messagebox.showwarning("Warning", "No record selected.")
 
-        # text field for search
-        e_search = ttk.Entry(f3, width=20, font=(None, 13, 'bold'))
-        e_search.grid(row=0, column=2, padx=30, pady=50, sticky='w')
-
-        # button for search
-        button_search = Button(f3, text='SEARCH', font=(None, 13, 'bold'), border=4,bg='white', command=search)
-        button_search.grid(row=0, column=3, padx=15, pady=30)
-
-        # ------------------- row 1 (delete/update/clearscreen buttons) ---------------
-        # button to delete
-        button_delete = Button(f4_2, text=' DELETE RECORD ', font=(None, 13, 'bold'), border=4,bg='white', command=delete_record)
-        button_delete.grid(row=0, column=0, padx=10, pady=10)
-
-        # button to update
-        button_edit = Button(f4_2, text=' EDIT RECORD ', font=(None, 13, 'bold'), border=4,bg='white', command=edit_record)
-        button_edit.grid(row=0, column=1, padx=10, pady=20)
-
-        # ---------------------- f4 (tree view) --------------------------
-        tree_view1 = ttk.Treeview(f4_1, columns=(1, 2, 3), show="headings", height="10")
-        tree_view1.grid(row=0, column=0, padx=20, pady=20, sticky='w')
-
-        tree_view1.heading(1, text="D A T E")
-        tree_view1.heading(2, text="T I T L E")
-        tree_view1.heading(3, text="E X P E N S E")
-        # scrollbar for tree_view1
-        scrollbar = ttk.Scrollbar(f4_1, orient=VERTICAL, command=tree_view1.yview)
-        tree_view1.configure(yscrollcommand=scrollbar.set)
-        scrollbar.grid(row=0, column=0, sticky=S + E + N)
-
-        # exit button
-        button_exit = Button(f4_2, text=' EXIT ', font=(None, 13, 'bold'), border=4,bg='white', command=exit)
-        button_exit.grid(row=0, column=2, padx=100, pady=20)
-
-        # button to clear the tree_view1
-        button_clear_tv = Button(f3, text=' CLEAR SCREEN ', font=(None, 13, 'bold'), border=4,fg='white',bg='white', command=clear_screen)
-        button_clear_tv.grid(row=1, column=2, padx=15, pady=10)
-
-    main_window1_tab1()
-    main_window2_tab2()
-
-    gui.mainloop()
+    def clear_entry_fields(self):
+        self.e_date.delete(0, 'end')
+        self.e_title.delete(0, 'end')
+        self.e_expense.delete(0, 'end')
 
 
-main_screen()
+if __name__ == "__main__":
+    root = tk.Tk()
+    app = ExpenseIncomeManager(root)
+    root.mainloop()
